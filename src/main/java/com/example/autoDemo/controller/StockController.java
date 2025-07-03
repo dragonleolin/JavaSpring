@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -46,7 +47,7 @@ public class StockController {
         for (String code : codes) {
             result = stockService.getStockInfo(codes);
         }
-        kafkaProducerService.sendStockMessage(result); //傳送給Telegram
+        //kafkaProducerService.sendStockMessage(result); //傳送給Telegram
         return result;
     }
 
@@ -90,7 +91,7 @@ public class StockController {
             @PathVariable String code,
             @RequestParam String from,
             @RequestParam String to
-    ) {
+    ) throws IOException {
         redisService.generateChartAndSendToTelegram(code, from, to);
         return ResponseEntity.ok("Chart generated and sent to Telegram for " + code);
     }

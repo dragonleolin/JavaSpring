@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.text.ParseException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -97,7 +99,7 @@ public class RedisService {
             redisTemplate.delete(keys);
         }
     }
-    public void generateChartAndSendToTelegram(String code, String fromDate, String toDate) {
+    public void generateChartAndSendToTelegram(String code, String fromDate, String toDate) throws IOException {
         List<StockResponse> data = getByCode(code).stream()
                 .filter(s -> {
                     String date = s.getMarketTime().substring(0, 8);
@@ -107,7 +109,8 @@ public class RedisService {
                 .collect(Collectors.toList());
 
         if (!data.isEmpty()) {
-            byte[] image = chartUtil.generateLineChartImage(code, data);
+            byte[] image = new byte[0];
+            image = chartUtil.generateLineChartImage(code, data);
             kafkaProducerService.sendPhoto(image);
         }
     }
