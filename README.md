@@ -1,3 +1,15 @@
+# 可呼叫API
+1. 取得今日股票資訊: http://localhost:8082/stock
+    ```
+        body:{ "codes": ["2330","2454","2912","00830","0050","0056","0052","00919","006208"] }
+    ```
+2. 取歷史資料組成圖表: http://localhost:8082/stock/chart/0050?from=20250630&to=20250707
+3. 查詢所有 Redis 快取: http://localhost:8082/stock/cache
+4. 查詢指定代碼所有快取紀錄: http://localhost:8082/stock/cache/0050
+5. 查詢最新一筆快取（依代碼）: http://localhost:8082/stock/cache/0050/latest
+6. 刪除指定快取: http://localhost:8082/stock/cache/0050/20250630
+7. 清空所有快取: http://localhost:8082/stock/cache/clear
+
 # [Redis 教學]
 1. 直接到 https://github.com/MicrosoftArchive/redis/releases 抓取 Redis-x64-3.0.504.msi 安裝
 2. 修改配置檔案，編輯配置檔案redis.windows.conf，修改以下內容：
@@ -50,121 +62,3 @@ n8n 是款能把你從重複的例行性任務中，拯救出來的自動化工�
 
 他有雲端與本地（local）的版本，考量到許多工作流程需要放上私鑰（ex: Google API Key、OpenAI API Key），以及雲端版本至少要付費 20 歐元（限制工作流程執行 2500 次）；所以筆者選擇了本地部署的方案，這篇文章會分享詳細的操作步驟。
 
-## ▋ STEP 1: 安裝 Docker
-
-前往 Docker 官網: https://www.docker.com/
-
-根據自己的作業系統選擇對應的版本下載。
-
-![img](./img/init_n8n/install_docker.png)
-
-## ▋ STEP 2: 使用 docker-compose.yml 安裝 n8n
-
-你可以直接 git clone 筆者的 GitHub 專案，或者建立一個 `n8n` 的資料夾，新增 `docker-compose.yml` 檔案。
-
-```yml
-version: '3.8'
-
-services:
-  n8n:
-    image: n8nio/n8n
-    ports:
-      - "5678:5678"
-    env_file:
-      - .env
-    volumes:
-      - n8n_data:/home/node/.n8n
-    restart: always
-
-  spring-app:
-    build: ./spring-app
-    ports:
-      - "8080:8080"
-    restart: always
-    depends_on:
-      - n8n
-
-volumes:
-  n8n_data:
-
-```
-
-貼上內容後，在終端機（Terminal）輸入 `docker compose up -d` 即可啟動
-
-![img](./img/init_n8n/docker_compose_up.png)
-
-## ▋ STEP 3: 建立與啟動
-### 編譯 Spring Boot 專案
-cd autoDemo
-./mvnw clean package
-
-### 回到專案根目錄
-cd ..
-
-### 啟動容器
-docker-compose up --build
-
-## ▋ STEP 4: n8n 範例流程設定
-啟動 n8n，開啟 http://localhost:5678
-
-建立一個新 Workflow，拖拉 Webhook 節點
-
-設定：
-
-HTTP Method: POST
-
-Path: /myworkflow
-
-Authentication: None（或 Basic）
-
-接著加入你想要的自動化流程（例如寄信、呼叫 API）
-
-部署並複製該 Webhook URL，例如 http://localhost:5678/webhook/myworkflow
-
-# 開始做省錢版通知
-## Step 1：準備 Telegram Bot
-    開 Telegram 搜尋 @BotFather    輸入 /newbot，依指示建立一個 bot
-    拿到你的 Bot Token（長得像 123456:ABC-DEF...）
-    尋找你想接收通知的 Telegram 聊天 ID：
-    打開你的 bot 聊天視窗，先傳一句話，然後用這個網址查看你的 chat ID
-👉  https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
-    在回傳的 JSON 裡找 chat.id，記住id
-
-## Step 2：n8n Workflow 範例（抓 PTT 省錢板）
-    範例流程：
-    Cron：每 10 分鐘執行一次
-    HTTP Request：抓 PTT 省錢板的 HTML（https://www.ptt.cc/bbs/Lifeismoney/index.html）
-    HTML Extract：抓出每篇文章的標題 + 連結
-    IF 判斷：判斷是否是新文章（可比對儲存的上次結果）
-    Telegram：推送訊息
-
-### 📦 範例 n8n 節點設定（純文字範本）
-    1. Cron（定時觸發）
-       Trigger every 10 minutes
-        Use built-in Cron node
-    2. HTTP Request 項目	設定
-        URL	https://www.ptt.cc/bbs/Lifeismoney/index.html
-        Method	GET
-        Response Format	String
-    3. HTML Extract（用 HTML Extract 或 Cheerio 節點）
-       CSS selector：div.r-ent a
-        這可以抓出所有文章連結的 <a> 元素
-    4. Set（把資料組成你要的格式）
-       你可以用 Set node 將抓到的文章組成： json 複製 編輯
-        {
-        "title": "這家超商又有買一送一",
-        "link": "https://www.ptt.cc/bbs/Lifeismoney/M.12345678.A.html"
-        }
-    5. Deduplicate（去重，避免重複通知）
-       使用 n8n 的 Data Store（或 Redis）儲存已通知過的文章連結，避免重複推播。
-    
-    6. Telegram Node
-          Bot Token：填剛剛建立的 Bot Token
-        Chat ID：剛剛查到的 chat id 
-    Message Text：
-        text
-        複製
-        編輯
-        📢 PTT 省錢板有新消息！
-            📰 {{ $json["title"] }}
-            🔗 {{ $json["link"] }}

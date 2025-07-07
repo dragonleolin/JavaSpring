@@ -24,10 +24,16 @@ public class ChartUtil {
     public static byte[] generateLineChartImage(String code, List<StockResponse> stockList) {
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
+        // 圖片產生的筆數保留最後 20 筆資料
+        List<StockResponse> limitedList =stockList.stream().sorted((a, b) -> b.getMarketTime().compareTo(a.getMarketTime()))// 按時間新到舊排序
+                .limit(20)
+                .sorted((a, b) -> a.getMarketTime().compareTo(b.getMarketTime())) // 重新按時間舊到新
+                .toList();
+
         double minPrice = Double.MAX_VALUE;
         double maxPrice = Double.MIN_VALUE;
 
-        for (StockResponse stock : stockList) {
+        for (StockResponse stock : limitedList) {
             try {
                 double price = Double.parseDouble(stock.getPrice());
                 dataset.addValue(price, "price", stock.getMarketTime());
