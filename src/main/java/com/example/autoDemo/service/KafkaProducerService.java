@@ -44,20 +44,24 @@ public class KafkaProducerService {
         restTemplate.getForObject(telegramUrl, String.class);
     }
 
-    public void sendPhoto(byte[] image) {
-        String url = "https://api.telegram.org/bot" + botToken + "/sendPhoto";
-        MultiValueMap<String, Object> map = new LinkedMultiValueMap<>();
-        map.add("chat_id", chatId);
-        map.add("photo", new ByteArrayResource(image) {
+    public void sendPhoto(byte[] imageBytes, String caption) {
+        String url = String.format("https://api.telegram.org/bot%s/sendPhoto", botToken);
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("chat_id", chatId);
+        body.add("caption", caption);
+        body.add("photo", new ByteArrayResource(imageBytes) {
             @Override
             public String getFilename() {
                 return "chart.png";
             }
         });
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(map, headers);
-        restTemplate.postForEntity(url, request, String.class);
+
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+        new RestTemplate().postForEntity(url, request, String.class);
     }
 
     public void sendStockInfo(StockInfo info) {

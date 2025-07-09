@@ -96,5 +96,17 @@ public class StockController {
         return ResponseEntity.ok("Chart generated and sent to Telegram for " + code);
     }
 
+    @GetMapping("/count/{code}")
+    public ResponseEntity<String> getQueryCount(@PathVariable String code) {
+        long count = redisService.getQueryCount(code);
+        return ResponseEntity.ok("股票代號 " + code + " 被查詢次數為：" + count);
+    }
+
+    @GetMapping("/chart/query-count")
+    public ResponseEntity<String> sendQueryCountChart() {
+        redisService.generatePieChartAndSendToTelegram();
+        return ResponseEntity.ok("查詢次數統計圖已發送");
+    }
+
 }
 

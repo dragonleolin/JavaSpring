@@ -9,6 +9,7 @@
 5. 查詢最新一筆快取（依代碼）: http://localhost:8082/stock/cache/0050/latest
 6. 刪除指定快取: http://localhost:8082/stock/cache/0050/20250630
 7. 清空所有快取: http://localhost:8082/stock/cache/clear
+8. 取搜尋紀錄產圓餅圖: http://localhost:8082/stock/chart/query-count
 
 # [Redis 教學]
 1. 直接到 https://github.com/MicrosoftArchive/redis/releases 抓取 Redis-x64-3.0.504.msi 安裝
@@ -27,7 +28,7 @@
 類型	Key 格式	範例
 個別股票	stock:股票代碼:時間	stock:2330:20250627-1215
 所有快取查詢	stock:*	自動匹配所有快取
-主 key（如 stock:2330）可以快速查最新資料。
+主 key（如 stock:2330、stock:data）可以快速查最新資料。
 帶時間的 key 可作為歷史記錄或查詢、追蹤用途。
 命名有規則便於查詢：可以使用 Redis 指令如 keys stock:2330:* 拿到所有歷史快取。
 
@@ -37,6 +38,7 @@
 2. 定時推播股價	每日 12:15 自動寫入快取，同時用 Kafka + Telegram 推播
 3. 查詢歷史股價	使用時間版本的快取 Key 進行歷史資料查詢或排序，用於生成圖表（保存每日、每次價格）
 ## 使用方式：
+saveToCache(): 把資料存入快取
 RedisService.java：包裝所有 Redis 快取邏輯 
 set(), get(), delete(), clearAll(), getByCode(), getLatestByCode()
 RedisTemplate<String, Object> 被用於與 Redis 互動

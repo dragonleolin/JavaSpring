@@ -3,6 +3,7 @@ package com.example.autoDemo.service;
 import com.example.autoDemo.data.StockResponse;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -16,6 +17,8 @@ public class StockService {
 
     @Autowired
     RedisService redisService;
+    @Autowired
+    private RedisTemplate<String, StockResponse> redisTemplate;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd HH:mm:ss");
 

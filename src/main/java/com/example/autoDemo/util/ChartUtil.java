@@ -9,14 +9,19 @@ import org.jfree.chart.axis.CategoryLabelPositions;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.labels.StandardCategoryItemLabelGenerator;
 import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.chart.plot.PiePlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.general.DefaultPieDataset;
 import org.springframework.stereotype.Component;
 
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class ChartUtil {
@@ -89,4 +94,46 @@ public class ChartUtil {
             throw new RuntimeException("生成圖表失敗", e);
         }
     }
+
+    public static byte[] generatePieChart(Map<String, Long> data, String title) {
+        // 只取前 10 名查詢最多的
+        Map<String, Long> top10 = data.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(10)
+                .collect(Collectors.toMap(
+                        (Map.Entry<String, Long> e) -> e.getKey(),
+                        (Map.Entry<String, Long> e) -> e.getValue(),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        DefaultPieDataset<String> dataset = new DefaultPieDataset<>();
+        top10.forEach((code, count) -> dataset.setValue(code + " (" + count + "次)", count));
+
+        // 關閉圖例（或保留)
+        JFreeChart chart = ChartFactory.createPieChart(
+                title, dataset,
+                true, // 設為 false 不顯示 legend
+                true,
+                false);
+
+        chart.setBackgroundPaint(Color.WHITE);
+        chart.getTitle().setFont(new Font("Microsoft JhengHei", Font.BOLD, 18));
+
+        PiePlot plot = (PiePlot) chart.getPlot();
+        plot.setLabelFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
+        plot.setCircular(true);
+        plot.setLabelGap(0.02);
+        plot.setBackgroundPaint(Color.WHITE);
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            ChartUtils.writeChartAsPNG(out, chart, 700, 500);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("生成圓餅圖失敗", e);
+        }
+    }
+
+
+
 }
