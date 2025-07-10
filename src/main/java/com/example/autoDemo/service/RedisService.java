@@ -94,12 +94,14 @@ public class RedisService {
         return result;
     }
 
-    public void generatePieChartAndSendToTelegram() {
+    public byte[] generatePieChartAndSendToTelegram() {
         Map<String, Long> data = getQueryCountMap();
-        if (data.isEmpty()) return;
+        if (data.isEmpty()) return null;
 
         byte[] image = ChartUtil.generatePieChart(data, "查詢次數統計");
         kafkaProducerService.sendPhoto(image, "查詢次數統計圖");
+
+        return  image;
     }
 
     public Optional<Map.Entry<String, StockResponse>> getLatestByCode(String code) {
@@ -138,7 +140,7 @@ public class RedisService {
             redisTemplate.delete(keys);
         }
     }
-    public void generateChartAndSendToTelegram(String code, String fromDate, String toDate) throws IOException {
+    public byte[] generateChartAndSendToTelegram(String code, String fromDate, String toDate) throws IOException {
         List<StockResponse> data = getByCode(code).stream()
                 .filter(s -> {
                     String date = s.getMarketTime().substring(0, 8);
@@ -146,12 +148,12 @@ public class RedisService {
                 })
                 .sorted(Comparator.comparing(StockResponse::getMarketTime))
                 .collect(Collectors.toList());
-
+        byte[] image = new byte[0];
         if (!data.isEmpty()) {
-            byte[] image = new byte[0];
             image = chartUtil.generateLineChartImage(code, data);
             kafkaProducerService.sendPhoto(image, "股票價格走勢圖");
         }
+        return image;
     }
 
 }

@@ -6,7 +6,11 @@ import com.example.autoDemo.service.KafkaProducerService;
 import com.example.autoDemo.service.RedisService;
 import com.example.autoDemo.service.StockService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +31,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/stock")
+@CrossOrigin(origins = "http://localhost:5173")  // 前端 Vue 預設 Port 是 5173
 public class StockController {
 
     @Autowired
@@ -85,28 +90,42 @@ public class StockController {
         return ResponseEntity.ok("All Redis cache cleared.");
     }
 
-    // URL: http://localhost:8082/stock/chart/0050?from=20250624&to=2025072
-    @GetMapping("/chart/{code}")
-    public ResponseEntity<String> getChart(
-            @PathVariable String code,
-            @RequestParam String from,
-            @RequestParam String to
-    ) throws IOException {
-        redisService.generateChartAndSendToTelegram(code, from, to);
-        return ResponseEntity.ok("Chart generated and sent to Telegram for " + code);
-    }
-
     @GetMapping("/count/{code}")
     public ResponseEntity<String> getQueryCount(@PathVariable String code) {
         long count = redisService.getQueryCount(code);
         return ResponseEntity.ok("股票代號 " + code + " 被查詢次數為：" + count);
     }
+    // URL: http://localhost:8082/stock/chart/0050?from=20250624&to=2025072
+    @GetMapping(value = "/chart/{code}", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getChartImage(
+            @PathVariable String code,
+            @RequestParam String from,
+            @RequestParam String to
+    ) {
+        try {
+            byte[] chartImage = redisService.generateChartAndSendToTelegram(code, from, to);
+            if (chartImage == null || chartImage.length == 0) {
+                System.out.println("chartImage: null");
+                return ResponseEntity.notFound().build();
+            }
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.IMAGE_PNG);
+            return new ResponseEntity<>(chartImage, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
 
     @GetMapping("/chart/query-count")
-    public ResponseEntity<String> sendQueryCountChart() {
-        redisService.generatePieChartAndSendToTelegram();
-        return ResponseEntity.ok("查詢次數統計圖已發送");
+    public ResponseEntity<byte[]> getQueryCountChart() {
+        byte[] image = redisService.generatePieChartAndSendToTelegram();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.IMAGE_PNG);
+        return new ResponseEntity<>(image, headers, HttpStatus.OK);
     }
+
+
 
 }
 

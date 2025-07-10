@@ -113,7 +113,7 @@ public class ChartUtil {
         // 關閉圖例（或保留)
         JFreeChart chart = ChartFactory.createPieChart(
                 title, dataset,
-                true, // 設為 false 不顯示 legend
+                false, // 設為 false 不顯示 legend
                 true,
                 false);
 
