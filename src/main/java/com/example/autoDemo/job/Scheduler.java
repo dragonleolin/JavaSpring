@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -42,6 +43,17 @@ public class Scheduler {
 
         for (StockResponse stock : stockList) {
             redisService.saveToHistory(stock.getCode(), time, stock);
+        }
+    }
+
+    // 每小時推播
+    //@Scheduled(cron = "${kdj.schedule.cron}")
+    // 每天12:15推播
+    @Scheduled(cron = "0 15 12 * * ?")
+    public void checkKdjForTargetStocks() {
+        List<String> codes = Arrays.asList("2330","0052", "006208", "00878", "00919");
+        for (String code : codes) {
+            stockService.checkAndNotifyKdj(code);
         }
     }
 }

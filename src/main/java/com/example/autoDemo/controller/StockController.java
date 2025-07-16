@@ -1,10 +1,12 @@
 package com.example.autoDemo.controller;
 
+import com.example.autoDemo.data.KdjData;
 import com.example.autoDemo.data.StockRequest;
 import com.example.autoDemo.data.StockResponse;
 import com.example.autoDemo.service.KafkaProducerService;
 import com.example.autoDemo.service.RedisService;
 import com.example.autoDemo.service.StockService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -125,7 +127,30 @@ public class StockController {
         return new ResponseEntity<>(image, headers, HttpStatus.OK);
     }
 
+    // 取KD值
+    @GetMapping("/kdj/{symbol}")
+    public ResponseEntity<String> getLatestKdj(
+            @PathVariable String symbol,
+            @RequestParam String from,
+            @RequestParam String to) {
 
+        KdjData latest = stockService.getLatestKdj(symbol, from, to);
+        System.out.println("latest:"+ latest);
+        if (latest != null) {
+            String msg = String.format("代碼：%s\n日期：%s\nK值：%.2f\nD值：%.2f",
+                    symbol, latest.getDate(), latest.getK(), latest.getD());
+            return ResponseEntity.ok(msg);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("查無資料");
+        }
+    }
+
+    @GetMapping("/sendKdj/{symbol}")
+    public ResponseEntity<String> getLatestKdj(
+            @PathVariable String symbol) throws JsonProcessingException {
+        stockService.checkAndNotifyKdj(symbol);
+        return ResponseEntity.ok("傳送成功");
+    }
 
 }
 
