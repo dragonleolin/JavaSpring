@@ -31,6 +31,8 @@ public class Scheduler {
     @Value("${stock.list}")
     private List<String> codes;
 
+    // 每小時推播
+    //@Scheduled(cron = "${kdj.schedule.cron}")
     // 每天12:15推播
     @Scheduled(cron = "0 15 12 * * ?")
     //@Scheduled(fixedDelay = 120 * 1000, initialDelay= 120 * 1000)
@@ -40,20 +42,11 @@ public class Scheduler {
 
         LocalDateTime now = LocalDateTime.now();
         String time = now.format(formatter);
-
-        for (StockResponse stock : stockList) {
-            redisService.saveToHistory(stock.getCode(), time, stock);
-        }
-    }
-
-    // 每小時推播
-    //@Scheduled(cron = "${kdj.schedule.cron}")
-    // 每天12:15推播
-    @Scheduled(cron = "0 15 12 * * ?")
-    public void checkKdjForTargetStocks() {
-        List<String> codes = Arrays.asList("2330","0052", "006208", "00878", "00919");
         for (String code : codes) {
             stockService.checkAndNotifyKdj(code);
+        }
+        for (StockResponse stock : stockList) {
+            redisService.saveToHistory(stock.getCode(), time, stock);
         }
     }
 }
