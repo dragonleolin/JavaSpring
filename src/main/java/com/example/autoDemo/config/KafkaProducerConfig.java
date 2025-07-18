@@ -2,7 +2,6 @@ package com.example.autoDemo.config;
 import com.example.autoDemo.data.StockInfo;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.*;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.core.*;
@@ -11,7 +10,6 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import java.util.*;
 
 @Configuration
-@ConditionalOnProperty(name = "app.kafka.enabled", havingValue = "true")
 @EnableKafka
 public class KafkaProducerConfig {
     @Bean

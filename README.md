@@ -10,7 +10,6 @@
 6. 刪除指定快取: http://localhost:8082/stock/cache/0050/20250630
 7. 清空所有快取: http://localhost:8082/stock/cache/clear
 8. 取搜尋紀錄產圓餅圖: http://localhost:8082/stock/chart/query-count
-9. LINE推播功能: http://localhost:8082/stock/sendKdj/006208
 
 # [Redis 教學]
 1. 直接到 https://github.com/MicrosoftArchive/redis/releases 抓取 Redis-x64-3.0.504.msi 安裝
