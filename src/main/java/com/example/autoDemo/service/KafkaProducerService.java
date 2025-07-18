@@ -1,10 +1,8 @@
 package com.example.autoDemo.service;
 
-import com.example.autoDemo.data.StockInfo;
 import com.example.autoDemo.data.StockResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
@@ -12,7 +10,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -26,9 +23,6 @@ import java.util.Map;
 
 @Service
 public class KafkaProducerService {
-
-    @Autowired
-    private KafkaTemplate<String, StockInfo> kafkaTemplate;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -118,8 +112,8 @@ public class KafkaProducerService {
     }
 
 
-    public void sendStockInfo(StockInfo info) {
-        kafkaTemplate.send("stock-topic", info);
-    }
+    //public void sendStockInfo(StockInfo info) {
+    //    kafkaTemplate.send("stock-topic", info);
+    //}
 }
 
