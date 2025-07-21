@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -103,20 +104,38 @@ public class StockService {
         return null;
     }
 
-    public void checkAndNotifyKdj(String stockNo) {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
+    public void checkAndNotifyKdj(String stockNo, boolean mayBuy) {
+        LocalDate yesterday = getPreviousWorkday(LocalDate.now());
+        System.out.println("最近的工作日是: " + yesterday);
         String today = yesterday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         KdjData kd = getLatestKdj(stockNo, today, today);
+        System.out.println("kd:"+ kd);
         if (kd == null) return;
-
-        // 發送通知
-//        if (kd.getK() < 25) {
-        try {
-            kafkaProducerService.sendLineMessage(String.format("⚠️ KD警示\n股票：%s\nK=%.2f, D=%.2f\n時間：%s", stockNo, kd.getK(), kd.getD(), kd.getDate()));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+        if (mayBuy){
+            // 發送通知
+            if (kd.getK() < 25) {
+                try {
+                    kafkaProducerService.sendLineMessage(String.format("⚠️ KD警示\n股票：%s\nK=%.2f, D=%.2f\n時間：%s", stockNo, kd.getK(), kd.getD(), kd.getDate()));
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        } else {
+            try {
+                kafkaProducerService.sendLineMessage(String.format("⚠️ KD警示\n股票：%s\nK=%.2f, D=%.2f\n時間：%s", stockNo, kd.getK(), kd.getD(), kd.getDate()));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
-//        }
+
+    }
+
+    public static LocalDate getPreviousWorkday(LocalDate date) {
+        LocalDate previous = date.minusDays(1); // 先抓昨天
+        while (previous.getDayOfWeek() == DayOfWeek.SATURDAY || previous.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            previous = previous.minusDays(1);
+        }
+        return previous;
     }
 
 }

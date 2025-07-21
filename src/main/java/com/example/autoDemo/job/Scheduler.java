@@ -43,7 +43,7 @@ public class Scheduler {
         LocalDateTime now = LocalDateTime.now();
         String time = now.format(formatter);
         for (String code : codes) {
-            stockService.checkAndNotifyKdj(code);
+            stockService.checkAndNotifyKdj(code, true);
         }
         for (StockResponse stock : stockList) {
             redisService.saveToHistory(stock.getCode(), time, stock);

@@ -148,7 +148,7 @@ public class StockController {
     @GetMapping("/sendKdj/{symbol}")
     public ResponseEntity<String> getLatestKdj(
             @PathVariable String symbol) throws JsonProcessingException {
-        stockService.checkAndNotifyKdj(symbol);
+        stockService.checkAndNotifyKdj(symbol, false);
         return ResponseEntity.ok("傳送成功");
     }
 
