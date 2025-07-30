@@ -3,6 +3,7 @@ package com.example.autoDemo.controller;
 import com.example.autoDemo.data.KdjData;
 import com.example.autoDemo.data.StockRequest;
 import com.example.autoDemo.data.StockResponse;
+import com.example.autoDemo.job.StockScheduler;
 import com.example.autoDemo.service.KafkaProducerService;
 import com.example.autoDemo.service.RedisService;
 import com.example.autoDemo.service.StockService;
@@ -22,11 +23,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 
 @RestController
@@ -42,6 +46,8 @@ public class StockController {
 
     @Autowired
     private RedisService redisService;
+    @Autowired
+    private StockScheduler stockScheduler;
 
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmm");
 
@@ -49,10 +55,14 @@ public class StockController {
     public List<StockResponse> getStocks(@RequestBody StockRequest request) {
         List<String> codes = request.getCodes();
         List<StockResponse> result = new ArrayList<>();
-        for (String code : codes) {
-            result = stockService.getStockInfo(codes);
+        try{
+            for (String code : codes) {
+                result = stockService.getStockInfo(codes);
+            }
+            //kafkaProducerService.sendStockMessage(result); //傳送給Telegram
+        } catch (Exception e) {
+            e.printStackTrace(); // Railway logs 可見
         }
-        //kafkaProducerService.sendStockMessage(result); //傳送給Telegram
         return result;
     }
 
@@ -150,5 +160,27 @@ public class StockController {
         return ResponseEntity.ok("傳送成功");
     }
 
-}
+    // 新增追蹤股號
+    @PostMapping("/add")
+    public ResponseEntity<String> addStock(@RequestParam String code) {
+        stockScheduler.addCode(code);
+        return ResponseEntity.ok("股號 " + code + " 已加入追蹤排程！");
+    }
 
+    @DeleteMapping("/remove")
+    public ResponseEntity<String> removeStock(@RequestParam String code) {
+        boolean removed = stockScheduler.removeCode(code);
+        if (removed) {
+            return ResponseEntity.ok("股號 " + code + " 已從追蹤排程中移除！");
+        } else {
+            return ResponseEntity.badRequest().body("股號 " + code + " 不存在於追蹤清單中！");
+        }
+    }
+
+    // 取得排程股票清單
+    @GetMapping("/list")
+    public ResponseEntity<Set<String>> getTrackedStocks() {
+        return ResponseEntity.ok(stockScheduler.getCodes());
+    }
+
+}

@@ -8,15 +8,19 @@ public class StockResponse implements Serializable {
     private String name;
     private String price;
     private String marketTime;
+    private Double k;
+    private Double d;
 
     // Jackson 反序列化需要預設建構子
     public StockResponse() {}
 
-    public StockResponse(String code, String name, String price, String marketTime) {
+    public StockResponse(String code, String name, String price, String marketTime, Double k, Double d) {
         this.code = code;
         this.name = name;
         this.price = price;
         this.marketTime = marketTime;
+        this.k = k;
+        this.d = d;
     }
 
     // getters and setters
@@ -31,4 +35,20 @@ public class StockResponse implements Serializable {
 
     public String getMarketTime() { return marketTime; }
     public void setMarketTime(String marketTime) { this.marketTime = marketTime; }
+
+    public Double getK() {
+        return k;
+    }
+
+    public void setK(Double k) {
+        this.k = k;
+    }
+
+    public Double getD() {
+        return d;
+    }
+
+    public void setD(Double d) {
+        this.d = d;
+    }
 }
