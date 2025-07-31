@@ -34,7 +34,7 @@ public class Scheduler {
     // 每小時推播
     //@Scheduled(cron = "${kdj.schedule.cron}")
     // 每天12:15推播
-    @Scheduled(cron = "0 15 12 * * ?")
+    //@Scheduled(cron = "0 15 12 * * ?")
     //@Scheduled(fixedDelay = 120 * 1000, initialDelay= 120 * 1000)
     public void pushDailyStockInfo() {
         List<StockResponse> stockList = stockService.getStockInfo(codes);

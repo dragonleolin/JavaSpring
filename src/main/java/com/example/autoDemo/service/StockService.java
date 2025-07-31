@@ -14,6 +14,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.DayOfWeek;
@@ -64,13 +65,7 @@ public class StockService {
                 }
                 String today = LocalDateTime.now().format(formatter);
                 KdjData kdjData = getLatestKdj(code, today, today);
-                //System.out.println("kdjData:" + kdjData);
-                if (kdjData == null) {
-                    LocalDate yesterday = getPreviousWorkday(LocalDate.now());
-                    String workday = yesterday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                    KdjData kd = getLatestKdj(code, workday, workday);
-                    System.out.println("workday kd:"+ kd);
-                }
+                System.out.println("kdjData:" + kdjData);
                 StockResponse stockResponse = new StockResponse();
                 stockResponse.setCode(code);
                 stockResponse.setName(name);
@@ -94,27 +89,48 @@ public class StockService {
         return responseList;
     }
 
-    public KdjData getLatestKdj(String symbol, String from, String to) {
-        //System.out.println("start getLatestKdj");
-        //System.out.println("fugleToken:"+ fugleToken);
-        String url = String.format(
-                "https://api.fugle.tw/marketdata/v1.0/stock/technical/kdj/%s?from=%s&to=%s&timeframe=D&rPeriod=9&kPeriod=3&dPeriod=3",
-                symbol, from, to);
-        // System.out.println("url:"+ url);
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-API-KEY", fugleToken);
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
+    public KdjData getLatestKdj(String symbol, String fromDate, String toDate) {
+        int maxRetries = 5;
+        int retryCount = 0;
 
-        ResponseEntity<FugleKdjResponse> response = restTemplate.exchange(
-                url, HttpMethod.GET, entity, FugleKdjResponse.class);
-        //System.out.println("getLatestKdj response:"+ response);
-        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null && !response.getBody().getData().isEmpty()) {
-            // 取最後一筆
-            return response.getBody().getData().get(response.getBody().getData().size() - 1);
+
+        while (retryCount < maxRetries) {
+            try {
+                String url = String.format(
+                        "https://api.fugle.tw/marketdata/v1.0/stock/technical/kdj/%s?from=%s&to=%s&timeframe=D&rPeriod=9&kPeriod=3&dPeriod=3",
+                        symbol, fromDate, toDate);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("X-API-KEY", fugleToken);
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+                ResponseEntity<FugleKdjResponse> response = restTemplate.exchange(
+                        url, HttpMethod.GET, entity, FugleKdjResponse.class);
+
+                if (response.getStatusCode() == HttpStatus.OK &&
+                        response.getBody() != null &&
+                        !response.getBody().getData().isEmpty()) {
+
+                    return response.getBody().getData()
+                            .get(response.getBody().getData().size() - 1); // 最後一筆
+                }
+
+            } catch (HttpClientErrorException.NotFound e) {
+                System.out.println("⚠️ 查無資料，嘗試往前一天重試...（第 " + (retryCount + 1) + " 次）");
+                LocalDate yesterday = getPreviousWorkday(LocalDate.now());
+                fromDate = yesterday.format(formatter);
+                toDate = yesterday.format(formatter);
+                retryCount++;
+            } catch (Exception e) {
+                System.err.println("🔥 其他錯誤: " + e.getMessage());
+                break;
+            }
         }
 
+        System.out.println("❌ 超過最大重試次數仍無法取得資料");
         return null;
     }
+
 
     public void checkAndNotifyKdj(String stockNo, boolean mayBuy) {
         LocalDate yesterday = getPreviousWorkday(LocalDate.now());
