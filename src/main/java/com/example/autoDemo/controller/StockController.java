@@ -113,6 +113,7 @@ public class StockController {
             @RequestParam String to
     ) {
         try {
+            System.out.println("code:"+ code);
             byte[] chartImage = redisService.generateChartAndSendToTelegram(code, from, to);
             if (chartImage == null || chartImage.length == 0) {
                 System.out.println("chartImage: null");
@@ -122,6 +123,7 @@ public class StockController {
             headers.setContentType(MediaType.IMAGE_PNG);
             return new ResponseEntity<>(chartImage, headers, HttpStatus.OK);
         } catch (Exception e) {
+            System.out.println("Exception:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

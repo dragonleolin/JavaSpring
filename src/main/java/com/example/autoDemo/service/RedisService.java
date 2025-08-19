@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -141,19 +143,35 @@ public class RedisService {
         }
     }
     public byte[] generateChartAndSendToTelegram(String code, String fromDate, String toDate) throws IOException {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
         List<StockResponse> data = getByCode(code).stream()
                 .filter(s -> {
-                    String date = s.getMarketTime().substring(0, 8);
-                    return date.compareTo(fromDate) >= 0 && date.compareTo(toDate) <= 0;
+                    try {
+                        String marketTime = s.getMarketTime();
+                        if (marketTime == null || marketTime.length() < 8) {
+                            return false;
+                        }
+                        LocalDate date = LocalDate.parse(marketTime.substring(0, 8), formatter);
+                        LocalDate from = LocalDate.parse(fromDate, formatter);
+                        LocalDate to = LocalDate.parse(toDate, formatter);
+                        return (date.isEqual(from) || date.isAfter(from)) &&
+                                (date.isEqual(to) || date.isBefore(to));
+                    } catch (Exception e) {
+                        return false;
+                    }
                 })
                 .sorted(Comparator.comparing(StockResponse::getMarketTime))
                 .collect(Collectors.toList());
+
         byte[] image = new byte[0];
+        System.out.println("generateChartAndSendToTelegram:" + data);
         if (!data.isEmpty()) {
             image = chartUtil.generateLineChartImage(code, data);
             kafkaProducerService.sendPhoto(image, "股票價格走勢圖");
         }
         return image;
     }
+
 
 }
