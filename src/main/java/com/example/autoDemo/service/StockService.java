@@ -121,6 +121,8 @@ public class StockService {
                 fromDate = yesterday.format(formatter);
                 toDate = yesterday.format(formatter);
                 retryCount++;
+
+
             } catch (Exception e) {
                 System.err.println("🔥 其他錯誤: " + e.getMessage());
                 break;
