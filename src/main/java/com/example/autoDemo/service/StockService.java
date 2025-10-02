@@ -3,6 +3,7 @@ package com.example.autoDemo.service;
 import com.example.autoDemo.data.FugleKdjResponse;
 import com.example.autoDemo.data.KdjData;
 import com.example.autoDemo.data.StockResponse;
+import com.example.autoDemo.data.StockSnapshotDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StockService {
@@ -38,6 +40,7 @@ public class StockService {
     private final RestTemplate restTemplate = new RestTemplate();
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd HH:mm:ss");
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String BASE_URL = "https://api.fugle.tw/marketdata/v1.0/stock/snapshot";
 
     public List<StockResponse> getStockInfo(List<String> stockCodes) {
         List<StockResponse> responseList = new ArrayList<>();
@@ -131,6 +134,64 @@ public class StockService {
 
         System.out.println("❌ 超過最大重試次數仍無法取得資料");
         return null;
+    }
+
+    // 成交量排行
+    public List<StockSnapshotDTO> getActiveStocks(String market) {
+        String url = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
+        String response = restTemplate.getForObject(url, String.class);
+        System.out.println("✅ response: " + response);
+        return fetchStockList(url);
+    }
+
+    // 漲跌幅排行
+    public List<StockSnapshotDTO> getMoverStocks(String market) {
+        String url = BASE_URL + "/movers/" + market + "?direction=up&change=percent";
+        return fetchStockList(url);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<StockSnapshotDTO> fetchStockList(String url) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-API-KEY", fugleToken);
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                Map.class
+        );
+
+        Map<String, Object> body = response.getBody();
+        List<Map<String, Object>> data = (List<Map<String, Object>>) body.get("data");
+
+        List<StockSnapshotDTO> result = new ArrayList<>();
+        for (Map<String, Object> item : data) {
+            StockSnapshotDTO dto = new StockSnapshotDTO();
+            dto.setSymbol((String) item.get("symbol"));
+            dto.setName((String) item.get("name"));
+            dto.setOpenPrice(toDouble(item.get("openPrice")));
+            dto.setHighPrice(toDouble(item.get("highPrice")));
+            dto.setLowPrice(toDouble(item.get("lowPrice")));
+            dto.setClosePrice(toDouble(item.get("closePrice")));
+            dto.setChange(toDouble(item.get("change")));
+            dto.setChangePercent(toDouble(item.get("changePercent")));
+            dto.setTradeVolume(toLong(item.get("tradeVolume")));
+            dto.setTradeValue(toLong(item.get("tradeValue")));
+            result.add(dto);
+        }
+        return result;
+    }
+
+    // 小工具：避免型別轉換出錯
+    private Double toDouble(Object o) {
+        return o == null ? null : Double.valueOf(o.toString());
+    }
+
+    private Long toLong(Object o) {
+        return o == null ? null : Long.valueOf(o.toString());
     }
 
 

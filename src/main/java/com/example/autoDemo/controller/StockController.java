@@ -3,6 +3,7 @@ package com.example.autoDemo.controller;
 import com.example.autoDemo.data.KdjData;
 import com.example.autoDemo.data.StockRequest;
 import com.example.autoDemo.data.StockResponse;
+import com.example.autoDemo.data.StockSnapshotDTO;
 import com.example.autoDemo.job.StockScheduler;
 import com.example.autoDemo.service.KafkaProducerService;
 import com.example.autoDemo.service.RedisService;
@@ -185,4 +186,14 @@ public class StockController {
         return ResponseEntity.ok(stockScheduler.getCodes());
     }
 
+
+    @GetMapping("/stocks/actives")
+    public List<StockSnapshotDTO> getActiveStocks() {
+        return stockService.getActiveStocks("TSE");
+    }
+
+    @GetMapping("/stocks/movers")
+    public List<StockSnapshotDTO> getMoverStocks() {
+        return stockService.getMoverStocks("TSE");
+    }
 }
