@@ -1,24 +1,14 @@
 package com.example.autoDemo.data;
 
-public class ChatMessage {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class ChatMessage {
+    private String sender;
     private String content;
     private String sentAt;
-
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public String getSentAt() {
-        return sentAt;
-    }
-
-    public void setSentAt(String sentAt) {
-        this.sentAt = sentAt;
-    }
 }

@@ -24,10 +24,12 @@ public class ChatSocketHandler implements WebSocketHandler {
 
     private final AIChatService aiChatService;
     private final ObjectMapper objectMapper;
-    private final Map<Long, WebSocketSession> sessionMap = new ConcurrentHashMap<>();
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+    private final Map<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>();
 
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) {
+        log.info("✅ WebSocket 連線建立: {}", session.getId());
+        sessionMap.put(session.getId(), session);
     }
 
     @Override
@@ -35,38 +37,38 @@ public class ChatSocketHandler implements WebSocketHandler {
         try {
             String payload = message.getPayload().toString();
             Map<String, Object> msg = objectMapper.readValue(payload, Map.class);
+            String content = (String) msg.get("content");
+
             LocalDateTime now = LocalDateTime.now();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             String formattedDateTime = now.format(formatter);
-            String content = (String) msg.get("content");
-            ChatMessage chatMessage = new ChatMessage();
-            chatMessage.setContent(content);
-            chatMessage.setSentAt(formattedDateTime);
-            // 呼叫 AI API（可封裝成 chatService.generateAIReply(...)）
+
+            // 使用者的原始訊息
+            ChatMessage userMessage = new ChatMessage("user", content, formattedDateTime);
+            log.info("📩 使用者訊息: {}", content);
+
+            // 呼叫 AI
             String aiReply = aiChatService.generateAIReply(content);
 
-            // 包裝 AI 回覆訊息
-            ChatMessage aiMessage = new ChatMessage();
-            aiMessage.setContent(aiReply);
-            aiMessage.setSentAt(formattedDateTime);
+            ChatMessage aiMessage = new ChatMessage("AI", aiReply, formattedDateTime);
 
+            // 回傳給前端
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(aiMessage)));
 
-            return; // 不往下執行，一般用戶之間才會傳送到 receiver
-
         } catch (Exception e) {
-            log.error("WebSocket handleMessage error", e);
+            log.error("❌ WebSocket handleMessage error", e);
         }
     }
 
     @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        log.error("⚠️ WebSocket 傳輸錯誤", exception);
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
-
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
+        log.info("🔌 WebSocket 連線關閉: {}", session.getId());
+        sessionMap.remove(session.getId());
     }
 
     @Override

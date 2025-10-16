@@ -140,6 +140,7 @@ public class StockController {
 
     // 取KD值
     @GetMapping("/kdj/{symbol}")
+
     public ResponseEntity<String> getLatestKdj(
             @PathVariable String symbol,
             @RequestParam String from,
