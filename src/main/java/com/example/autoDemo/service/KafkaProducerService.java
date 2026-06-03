@@ -46,6 +46,7 @@ public class KafkaProducerService {
                 botToken, chatId, message.toString());
 
         RestTemplate restTemplate = new RestTemplate();
+
         restTemplate.getForObject(telegramUrl, String.class);
     }
 

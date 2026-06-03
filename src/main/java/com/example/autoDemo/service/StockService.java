@@ -44,14 +44,21 @@ public class StockService {
 
     public List<StockResponse> getStockInfo(List<String> stockCodes) {
         List<StockResponse> responseList = new ArrayList<>();
-        RestTemplate restTemplate = new RestTemplate();
+
+        // 取得前一營業日的日期
+        LocalDate previousDay = getPreviousWorkday(LocalDate.now());
+        String previousDayStr = previousDay.format(formatter);
+
         for (String code : stockCodes) {
+            // 先查 Redis 緩存 (這裡能防止頻繁 F5 刷新導致 Line 瘋狂連發通知)
             StockResponse cached = redisService.getFromCache(code);
             if (cached != null) {
                 responseList.add(cached);
                 continue;
             }
+
             try {
+                // 1. 查詢 TWSE 股票基本資訊
                 String url = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_" + code + ".tw";
                 String response = restTemplate.getForObject(url, String.class);
 
@@ -62,29 +69,64 @@ public class StockService {
 
                 String name = stock.getString("n");
                 String price = stock.getString("z");
-                String time = stock.getString("t");
+
                 if ("-".equals(price)) {
-                    price = stock.getString("h"); // 若沒有試算參考成交量，取當日最高價
+                    price = stock.getString("h"); // 若無成交價，取最高價
                 }
-                String today = LocalDateTime.now().format(formatter);
-                KdjData kdjData = getLatestKdj(code, today, today);
-                System.out.println("kdjData:" + kdjData);
+
+                // 2. 查詢最新的 KD 值
+                KdjData kdjData = getLatestKdj(code, previousDayStr, previousDayStr);
+
                 StockResponse stockResponse = new StockResponse();
                 stockResponse.setCode(code);
                 stockResponse.setName(name);
                 stockResponse.setPrice(price);
                 stockResponse.setMarketTime(formattedTime);
-                stockResponse.setK(Math.round(kdjData.getK() * 100.0) / 100.0);
-                stockResponse.setD(Math.round(kdjData.getD() * 100.0) / 100.0);
 
-                // 寫入 Redis 快取 (10 分鐘)
+                // 3. 整合：寫入 KD 值並判斷是否需要發送通知
+                if (kdjData != null) {
+                    double kValue = Math.round(kdjData.getK() * 100.0) / 100.0;
+                    double dValue = Math.round(kdjData.getD() * 100.0) / 100.0;
+                    stockResponse.setK(kValue);
+                    stockResponse.setD(dValue);
+
+                    // 🚨 核心邏輯：判斷 KD 高低檔並觸發 Kafka 發送 Line 警示
+                    try {
+                        String alertType = "";
+
+                        // 定義高低檔水位線 (可依策略微調，例如高檔設為 80)
+                        if (kValue <= 25) {
+                            alertType = "📉 [KD低檔] 超賣警示 / 關注反彈";
+                        } else if (kValue >= 88) {
+                            alertType = "📈 [KD高檔] 超買警示 / 注意回檔";
+                        }
+
+                        // 只有當 alertType 被賦值時 (觸發高低檔條件)，才發送通知
+                        if (!alertType.isEmpty()) {
+                            String alertMsg = String.format("%s\n股票：%s %s\nK=%.2f, D=%.2f\n時間：%s",
+                                    alertType, code, name, kValue, dValue, kdjData.getDate());
+
+                            kafkaProducerService.sendLineMessage(alertMsg);
+                            System.out.println("✅ 已發送 KD 警示通知: " + code + " (" + alertType + ")");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("❌ 發送 Line 通知失敗: " + e.getMessage());
+                    }
+
+                } else {
+                    stockResponse.setK(0.0);
+                    stockResponse.setD(0.0);
+                }
+
+                // 寫入 Redis 快取 (10 分鐘) - 這同時發揮了「10分鐘內不重複發送相同警告」的保護作用
                 redisService.saveToCache(code, stockResponse);
 
-                // 寫入 Redis 歷史資料 (不設定 TTL)
+                // 寫入 Redis 歷史資料
                 redisService.saveToHistory(code, formattedTime, stockResponse);
 
                 responseList.add(stockResponse);
             } catch (Exception e) {
+                System.err.println("❌ 股票 " + code + " 查詢失敗: " + e.getMessage());
                 responseList.add(new StockResponse(code, "查詢失敗", "-", "-", 0.0, 0.0));
             }
         }
@@ -95,7 +137,6 @@ public class StockService {
     public KdjData getLatestKdj(String symbol, String fromDate, String toDate) {
         int maxRetries = 5;
         int retryCount = 0;
-
 
         while (retryCount < maxRetries) {
             try {
@@ -115,24 +156,28 @@ public class StockService {
                         !response.getBody().getData().isEmpty()) {
 
                     return response.getBody().getData()
-                            .get(response.getBody().getData().size() - 1); // 最後一筆
+                            .get(response.getBody().getData().size() - 1); // 取最後一筆
                 }
 
             } catch (HttpClientErrorException.NotFound e) {
                 System.out.println("⚠️ 查無資料，嘗試往前一天重試...（第 " + (retryCount + 1) + " 次）");
-                LocalDate yesterday = getPreviousWorkday(LocalDate.now());
-                fromDate = yesterday.format(formatter);
-                toDate = yesterday.format(formatter);
+
+                // 🛠️ 修正點：將當前的 fromDate 轉換回 LocalDate，再往前推一天
+                LocalDate currentQueryDate = LocalDate.parse(fromDate, formatter);
+                LocalDate previousWorkday = getPreviousWorkday(currentQueryDate);
+
+                // 更新 fromDate 與 toDate，讓下一次迴圈查更早的一天
+                fromDate = previousWorkday.format(formatter);
+                toDate = previousWorkday.format(formatter);
                 retryCount++;
 
-
             } catch (Exception e) {
-                System.err.println("🔥 其他錯誤: " + e.getMessage());
+                System.err.println("🔥 API 其他錯誤: " + e.getMessage());
                 break;
             }
         }
 
-        System.out.println("❌ 超過最大重試次數仍無法取得資料");
+        System.out.println("❌ [" + symbol + "] 超過最大重試次數 (" + maxRetries + ") 仍無法取得 KD 資料");
         return null;
     }
 
@@ -221,8 +266,11 @@ public class StockService {
 
     }
 
+    /**
+     * 輔助方法：取得前一個工作日 (避開六日)
+     */
     public static LocalDate getPreviousWorkday(LocalDate date) {
-        LocalDate previous = date.minusDays(1); // 先抓昨天
+        LocalDate previous = date.minusDays(1);
         while (previous.getDayOfWeek() == DayOfWeek.SATURDAY || previous.getDayOfWeek() == DayOfWeek.SUNDAY) {
             previous = previous.minusDays(1);
         }

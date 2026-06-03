@@ -30,7 +30,7 @@ public class AIChatService {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", model);
         requestBody.put("messages", List.of(
-                Map.of("role", "system", "content", "你是一位友善且懂股票投資的AI助理。"),
+                Map.of("role", "system", "content", "你是一位專注於台股的產業鏈分析師並回答的時候給我股號"),
                 Map.of("role", "user", "content", userMessage)
         ));
         requestBody.put("max_tokens", 300);
